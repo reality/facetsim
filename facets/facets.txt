@@ -1,0 +1,21 @@
+abnormality of the endocrine system	http://purl.obolibrary.org/obo/HP_0000818	'Phenotypic abnormality'	HP	1
+abnormality of the cardiovascular system	http://purl.obolibrary.org/obo/HP_0001626	'Phenotypic abnormality'	HP	1
+abnormality of the immune system	http://purl.obolibrary.org/obo/HP_0002715	'Phenotypic abnormality'	HP	1
+phenotypic abnormality	http://purl.obolibrary.org/obo/HP_0000118	'Phenotypic abnormality'	HP	1
+abnormality of the musculoskeletal system	http://purl.obolibrary.org/obo/HP_0033127	'Phenotypic abnormality'	HP	1
+abnormality of the genitourinary system	http://purl.obolibrary.org/obo/HP_0000119	'Phenotypic abnormality'	HP	1
+abnormality of the voice	http://purl.obolibrary.org/obo/HP_0001608	'Phenotypic abnormality'	HP	1
+abnormality of metabolism/homeostasis	http://purl.obolibrary.org/obo/HP_0001939	'Phenotypic abnormality'	HP	1
+abnormality of the nervous system	http://purl.obolibrary.org/obo/HP_0000707	'Phenotypic abnormality'	HP	1
+growth abnormality	http://purl.obolibrary.org/obo/HP_0001507	'Phenotypic abnormality'	HP	1
+abnormal cellular phenotype	http://purl.obolibrary.org/obo/HP_0025354	'Phenotypic abnormality'	HP	1
+abnormality of blood and blood\-forming tissues	http://purl.obolibrary.org/obo/HP_0001871	'Phenotypic abnormality'	HP	1
+abnormality of the integument	http://purl.obolibrary.org/obo/HP_0001574	'Phenotypic abnormality'	HP	1
+neoplasm	http://purl.obolibrary.org/obo/HP_0002664	'Phenotypic abnormality'	HP	1
+abnormality of limbs	http://purl.obolibrary.org/obo/HP_0040064	'Phenotypic abnormality'	HP	1
+abnormality of the thoracic cavity	http://purl.obolibrary.org/obo/HP_0045027	'Phenotypic abnormality'	HP	1
+abnormality of the digestive system	http://purl.obolibrary.org/obo/HP_0025031	'Phenotypic abnormality'	HP	1
+abnormality of prenatal development or birth	http://purl.obolibrary.org/obo/HP_0001197	'Phenotypic abnormality'	HP	1
+constitutional symptom	http://purl.obolibrary.org/obo/HP_0025142	'Phenotypic abnormality'	HP	1
+abnormality of head or neck	http://purl.obolibrary.org/obo/HP_0000152	'Phenotypic abnormality'	HP	1
+abnormality of the respiratory system	http://purl.obolibrary.org/obo/HP_0002086	'Phenotypic abnormality'	HP	1
