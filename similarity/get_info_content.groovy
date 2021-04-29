@@ -55,8 +55,7 @@ import slib.utils.ex.SLIB_Exception;
 import slib.utils.impl.Timer;
 
 def aFile = args[0]
-def rmneg = args[1] == 'true'
-def oFile = args[2]
+def oFile = args[1]
 
 def patient_visit_diagnoses = [:]
 def pcounts = [:]
@@ -91,7 +90,6 @@ aFileContent.each {
   if(it[0] && it[1]) {
   it[0] = it[0].tokenize('.')[0]
   if(patient_visit_diagnoses.containsKey(it[0])) {
-    if(rmneg && (it[5].indexOf('unc') != -1 || it[5].indexOf('neg') != -1)) { println 'fye' ; return ;}
     if(!aMap.containsKey(it[0])) {
       aMap[it[0]] = []
     }
@@ -167,10 +165,7 @@ def smConfGroupwise = new SMconf(SMConstants.FLAG_SIM_GROUPWISE_BMA, icConf)
 
 def z = 0
 
-def outWriter = new BufferedWriter(new FileWriter('../data/facet_matrix.lst'), 1024 * 1024 * 1024)
-if(rmneg) {
-outWriter = new BufferedWriter(new FileWriter('../data/facet_matrix_noneg.lst'), 1024 * 1024 * 1024)
-}
+def outWriter = new BufferedWriter(new FileWriter('../data/facet_ic.lst'), 1024 * 1024 * 1024)
 
 def engine = new SM_Engine(graph)
 
@@ -178,58 +173,13 @@ cList = cList.unique()
 
 
 def getURIfromTerm = { term ->
-    term = term.tokenize(':')
-    return factory.getURI("http://purl.obolibrary.org/obo/HP_" + term[1])
+    return factory.getURI(term)
 }
 
-outWriter.write('g1,g2,all_score,i,'+facetList.join(',')+',match\n')
-
-def rrs=[]
-def aps=[]
-aMap.each { g1, u1 ->
-  println "(${++z}/${aMap.size()})"
-  def aList = []
-  aMap.each { g2, u2 ->
-    if(g1 == g2) { return; }
-    def match = patient_visit_diagnoses[g1][0] == patient_visit_diagnoses[g2][0]
-
-    def line = [g1,g2]
-
-    // Get the overall score
-    try {
-      line << engine.compare(smConfGroupwise, smConfPairwise,
-                                    u1.collect { 
-                                      getURIfromTerm(it)
-                                     }.findAll { graph.containsVertex(it) }.toSet(), 
-                                    u2.collect { 
-                                      getURIfromTerm(it)
-                                    }.findAll { graph.containsVertex(it) }.toSet())
-
-    } catch(e) { line << 0 }
-
-    // Add score for each facet
-    facetList.each { f ->
-     try {
-      line << engine.compare(smConfGroupwise, smConfPairwise,
-                                    u1.collect { 
-                                      getURIfromTerm(it)
-                                     }.findAll { fMap[f].contains(it.toString()) && graph.containsVertex(it) }.toSet(), 
-                                    u2.collect { 
-                                      getURIfromTerm(it)
-                                    }.findAll { fMap[f].contains(it.toString()) && graph.containsVertex(it) }.toSet())
-
-      } catch(e) { line << 0 }  
-    }
-
-    line << match
-    aList << line
-  }
-
-  aList = aList.toSorted { it[2] }.reverse() //[0..10]
-  aList.eachWithIndex { it, i -> 
-    def out = it.subList(0, 3).join(',') + ',' + (i+1) + ',' + it.subList(3, it.size()).join(',') + '\n'
-    print out
-    outWriter.write(out)
+fMap.each { k, v ->
+  v.each {
+    def term = getURIfromTerm(it)  
+    outWriter.write("${v},${engine.getIC(icConf, term)}\n")
   }
 }
 

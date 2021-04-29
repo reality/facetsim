@@ -1,9 +1,12 @@
+def scoreCol = Integer.parseInt(args[0])
 def mtx = [:]
-new File("./natural_matrix.lst").splitEachLine(','){
+new File("../data/facet_matrix.lst").splitEachLine(','){
+  if(it[0] == 'g1') { return; }
   if(!mtx.containsKey(it[0])) { mtx[it[0]] = [:] }
-  mtx[it[0]][it[1]] = it[2]
+  def score = it[scoreCol]
+  mtx[it[0]][it[1]] = score
   if(!mtx.containsKey(it[1])) { mtx[it[1]] = [:] }
-  mtx[it[1]][it[0]] = it[2]
+  mtx[it[1]][it[0]] = score
 }
 
 def keys = mtx.keySet().asList()

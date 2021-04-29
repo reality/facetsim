@@ -15,9 +15,9 @@ getAUC <- function(df, scoreCol) {
 }
 
 # Load file
-facet_matrix <- read_csv("~/simsim/facet_matrix.lst")
+facet_matrix <- read_csv("~/simsim/data/facet_matrix.lst")
 facets <- c("abnormality of the endocrine system","abnormality of the cardiovascular system",
-            "abnormality of the immune system","phenotypic abnormality",
+            "abnormality of the immune system",
             "abnormality of the musculoskeletal system","abnormality of the genitourinary system",
             "abnormality of the voice","abnormality of metabolism/homeostasis",
             "abnormality of the nervous system","growth abnormality","abnormal cellular phenotype"
@@ -26,10 +26,17 @@ facets <- c("abnormality of the endocrine system","abnormality of the cardiovasc
             "abnormality of the digestive system","abnormality of prenatal development or birth",
             "constitutional symptom","abnormality of head or neck","abnormality of the respiratory system")
 
+for(y in facets) {
+  facet_matrix[[y]] <- rangey(facet_matrix[[y]])
+}
+
 # 1. Check performance of all
 
 allResult <- getAUC(facet_matrix, "all_score")
 allResult[["pr"]]
+
+paResult <- getAUC(facet_matrix, "phenotypic abnormality")
+paResult[["pr"]]
 
 # 2. Check performance of sum
 
