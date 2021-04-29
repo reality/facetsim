@@ -179,7 +179,7 @@ def getURIfromTerm = { term ->
 fMap.each { k, v ->
   v.each {
     def term = getURIfromTerm(it)  
-    outWriter.write("${v},${engine.getIC(icConf, term)}\n")
+    outWriter.write("${it},${engine.getIC(icConf, term)}\n")
   }
 }
 
