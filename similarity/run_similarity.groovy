@@ -110,7 +110,7 @@ aFileContent.each {
 }
 
 println 'writing the annotation file now'
-def sWriter = new BufferedWriter(new FileWriter('annot.tsv'))
+def sWriter = new BufferedWriter(new FileWriter('../data/annot.tsv'))
 def oo = ''
 def y = 0
 aMap.each { a, b ->
@@ -143,7 +143,7 @@ gConf.addGDataConf(dataConf)
 gConf.addGAction(actionRerootConf)
 //def gConf = new GraphConf()
 //gConf.addGDataConf(dataConf)
-def annot = 'annot.tsv'
+def annot = '../data/annot.tsv'
 gConf.addGDataConf(new GDataConf(GFormat.TSV_ANNOT, annot));
 
 GraphLoaderGeneric.load(gConf, graph)
@@ -167,9 +167,9 @@ def smConfGroupwise = new SMconf(SMConstants.FLAG_SIM_GROUPWISE_BMA, icConf)
 
 def z = 0
 
-def outWriter = new BufferedWriter(new FileWriter('facet_matrix.lst'), 1024 * 1024 * 1024)
+def outWriter = new BufferedWriter(new FileWriter('../data/facet_matrix.lst'), 1024 * 1024 * 1024)
 if(rmneg) {
-outWriter = new BufferedWriter(new FileWriter('facet_matrix_noneg.lst'), 1024 * 1024 * 1024)
+outWriter = new BufferedWriter(new FileWriter('../data/facet_matrix_noneg.lst'), 1024 * 1024 * 1024)
 }
 
 def engine = new SM_Engine(graph)
