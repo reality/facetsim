@@ -86,7 +86,7 @@ def explainCluster = { cid ->
 		def subclasses = reasoner.getSubClasses(ce, false).collect { n -> n.getEntities().collect { it.getIRI().toString() } }.flatten()
 		explainers[c] = [
 			ic: ic[c],
-			explains: clusters[cid].collect { pid -> profiles[pid].findAll { pc -> subclasses.contains(pc) }.size() }.sum()
+			explains: clusters[cid].findAll { pid -> profiles[pid].any { pc -> subclasses.contains(pc) } }.size()
 		]
 
 		reasoner.getSuperClasses(ce, true).each { n ->
@@ -104,16 +104,18 @@ def explainCluster = { cid ->
 	def minIc = explainers.collect { k, v -> v.ic }.min()
 	def maxEx = explainers.collect { k, v -> v.explains }.max()
 	def minEx = explainers.collect { k, v -> v.explains }.min()
+  def icCutoff = 5
 
 	explainers = explainers.findAll { k, v -> v.ic }
 	explainers = explainers.collect { k, v ->
 		def normIc = (v.ic - minIc) / (maxIc - minIc)
-		def normEx = (v.explains - minEx) / (maxEx - minEx)
-		v.score = (normIc / 2) + (normEx / 2)
+		def normEx = ((v.explains - minEx) / (maxEx - minEx))
+		v.score = ((normIc * normEx) / ((normIc) + normEx))
 		v.iri = k 
 		v
 	}
 
+  //explainers = explainers.findAll { it.ic > icCutoff }
 	def sorted = explainers.sort { -it.score }
 
 	println clusters[cid].size()
