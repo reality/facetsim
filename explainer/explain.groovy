@@ -46,6 +46,15 @@ new File('../data/annotations_with_modifiers.txt').splitEachLine('\t') {
   profiles[id] << it[1]
 }
 
+// Loading labels
+println 'Loading ontology labels'
+def labels = [:]
+new File('../data/hpo_labels.txt').splitEachLine('\t') {
+  if(!labels.containsKey(it[1])) {
+    labels[it[1]] = it[0] 
+  }
+}
+
 // Load class IC values
 println 'Loading information content ...'
 def ic = [:]
@@ -86,7 +95,13 @@ def explainCluster = { cid ->
 		def subclasses = reasoner.getSubClasses(ce, false).collect { n -> n.getEntities().collect { it.getIRI().toString() } }.flatten()
 		explainers[c] = [
 			ic: ic[c],
-			explains: clusters[cid].findAll { pid -> profiles[pid].any { pc -> subclasses.contains(pc) } }.size()
+			explains: clusters[cid].findAll { pid -> profiles[pid].any { pc -> subclasses.contains(pc) } }.size(),
+      oexplains: clusters.collect { lcid, p ->
+        if(lcid == cid) { return 0; }
+        p.findAll { pid ->
+          profiles[pid].any { pc -> subclasses.contains(pc) }
+        }.size() 
+      }.sum()
 		]
 
 		reasoner.getSuperClasses(ce, true).each { n ->
@@ -104,22 +119,47 @@ def explainCluster = { cid ->
 	def minIc = explainers.collect { k, v -> v.ic }.min()
 	def maxEx = explainers.collect { k, v -> v.explains }.max()
 	def minEx = explainers.collect { k, v -> v.explains }.min()
-  def icCutoff = 5
+  def maxOex = explainers.collect { k, v -> v.oexplains }.max()
+  def minOex = explainers.collect { k, v -> v.oexplains }.min()
 
 	explainers = explainers.findAll { k, v -> v.ic }
 	explainers = explainers.collect { k, v ->
-		def normIc = (v.ic - minIc) / (maxIc - minIc)
-		def normEx = ((v.explains - minEx) / (maxEx - minEx))
-		v.score = ((normIc * normEx) / ((normIc) + normEx))
+		v.normIc = (v.ic - minIc) / (maxIc - minIc)
+		v.normEx = ((v.explains - minEx) / (maxEx - minEx))
+    v.normOex = ((v.oexplains - minOex) / (maxOex - minOex))
+		v.score = ((v.normIc * v.normEx) / ((v.normIc) + v.normEx))
+    v.oscore = ((1-v.normOex) * v.normEx) / ((1-v.normOex) + v.normEx)
 		v.iri = k 
 		v
 	}
 
   //explainers = explainers.findAll { it.ic > icCutoff }
-	def sorted = explainers.sort { -it.score }
+	//def sorted = explainers.sort { it.normOex }
 
-	println clusters[cid].size()
-	println sorted.subList(0,10)
+  println "cluster $cid"
+	println "members: ${clusters[cid].size()}"
+
+  // So ideally I think we instead probably want to kind of step down each value individually and identify some way of identifying the best group of values... thjis will do for now 
+  // We can also further introspect by doign the same process to explain clusters pairwise (e.g. if you have two heavily cardiac clusters)
+  def stepDown
+  stepDown = { e, icCutoff, exCutoff, minExclusion ->
+    def oexc = exCutoff
+    if(oexc < minExclusion) { oexc = minExclusion }
+
+    ef = e.findAll {
+      it.normIc > icCutoff && it.normEx > exCutoff && (1-it.normOex) > oexc
+    } 
+    if(ef.size() < 2) {
+      return stepDown(e, icCutoff, exCutoff - 0.05, minExclusion) 
+    } 
+    return ef
+  }
+
+  explainers = stepDown(explainers, 0.3, 0.95, 0.65)
+  explainers.sort { -it.normIc }.each {
+    println "${labels[it.iri]}\t$it.iri\texclusivity score:${it.normOex}\tinclusivity score:${it.normEx}\tic:${it.normIc}"
+  }
+
 	println ''
 }
 
