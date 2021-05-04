@@ -31,6 +31,7 @@ import org.codehaus.gpars.*
 println 'Loading clusters ...'
 def clusters = [:]
 new File('../data/all_clust_membership.csv').splitEachLine(',') {
+  if(it[2] != '1' && it[2] != '7') { return; }
   if(!clusters.containsKey(it[2])) {
     clusters[it[2]] = [] 
   }
@@ -155,7 +156,7 @@ def explainCluster = { cid ->
     return ef
   }
 
-  explainers = stepDown(explainers, 0.3, 0.95, 0.65)
+  explainers = stepDown(explainers, 0.3, 0.95, 0.33)
   explainers.sort { -it.normIc }.each {
     println "${labels[it.iri]}\t$it.iri\texclusivity score:${it.normOex}\tinclusivity score:${it.normEx}\tic:${it.normIc}"
   }
@@ -163,9 +164,7 @@ def explainCluster = { cid ->
 	println ''
 }
 
-(1..7).each { i ->
+["1", "7"].each { i ->
 	explainCluster("$i")
 }
-
-// TODO so we can also identify a minimum coverage it needs to have, and a er 
-// TODO we can also develop a measure of cluster health, by creating a score of how much cross-over there is between your explanatory variables...
+// TODO create the explanations, then go through and see which pairs have cross-over, explain those in contra-distinction, and add those ones to the explanations
