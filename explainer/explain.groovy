@@ -30,12 +30,25 @@ import org.codehaus.gpars.*
 // Load cluster memberships
 println 'Loading clusters ...'
 def clusters = [:]
+//new File('../data/facet_clust_membership.csv').splitEachLine(',') {
 new File('../data/all_clust_membership.csv').splitEachLine(',') {
-  if(it[2] != '1' && it[2] != '7') { return; }
-  if(!clusters.containsKey(it[2])) {
-    clusters[it[2]] = [] 
+  //if(!["2","3","5"].contains(it[2])) { return; }
+  def cIndex = 2
+  if(!clusters.containsKey(it[cIndex])) {
+    clusters[it[cIndex]] = [] 
   }
-  clusters[it[2]] << it[1].replaceAll('"','')
+  clusters[it[cIndex]] << it[1].replaceAll('"','')
+}
+
+// Loading fMap
+def facetList = []
+def fMap = [:]
+new File('../facets/facet_map.txt').splitEachLine('\t') {
+  if(!facetList.contains(it[2])) {
+    facetList << it[2]
+    fMap[it[2]] = []
+  }
+  fMap[it[2]] << it[1]
 }
 
 // Load patient phenotype profiles
@@ -43,6 +56,9 @@ println 'Loading patient phenotypes ...'
 def profiles = [:]
 new File('../data/annotations_with_modifiers.txt').splitEachLine('\t') {
   def id = it[0].tokenize('.')[0]
+  /*if(!fMap['abnormality of the cardiovascular system'].contains(it[1])) {
+    return; 
+  }*/
   if(!profiles.containsKey(id)) { profiles[id] = [] }
   profiles[id] << it[1]
 }
@@ -137,34 +153,35 @@ def explainCluster = { cid ->
   //explainers = explainers.findAll { it.ic > icCutoff }
 	//def sorted = explainers.sort { it.normOex }
 
-  println "cluster $cid"
-	println "members: ${clusters[cid].size()}"
 
   // So ideally I think we instead probably want to kind of step down each value individually and identify some way of identifying the best group of values... thjis will do for now 
   // We can also further introspect by doign the same process to explain clusters pairwise (e.g. if you have two heavily cardiac clusters)
   def stepDown
-  stepDown = { e, icCutoff, exCutoff, minExclusion ->
-    def oexc = exCutoff
-    if(oexc < minExclusion) { oexc = minExclusion }
+  stepDown = { e, icCutoff, incCutoff, excCutoff, minExclusion ->
+    /*def oexc = exCutoff
+    if(oexc < minExclusion) { oexc = minExclusion }*/
 
     ef = e.findAll {
-      it.normIc > icCutoff && it.normEx > exCutoff && (1-it.normOex) > oexc
+      it.normIc > icCutoff && it.normEx > incCutoff && (1-it.normOex) > excCutoff
     } 
     if(ef.size() < 2) {
-      return stepDown(e, icCutoff, exCutoff - 0.05, minExclusion) 
+      if(incCutoff == 0 || excCutoff == 0) { return [] }
+      return stepDown(e, icCutoff, incCutoff - 0.05, excCutoff - 0.05, minExclusion) 
     } 
     return ef
   }
 
-  explainers = stepDown(explainers, 0.3, 0.95, 0.33)
+  println "Cluster $cid (${clusters[cid].size()} patient visits) & {\\bf Exclusion} & {\\bf Inclusion} & {\\bf IC} \\\\"
+  explainers = stepDown(explainers, 0.3, 0.95, 0.95, 0.33)
   explainers.sort { -it.normIc }.each {
-    println "${labels[it.iri]}\t$it.iri\texclusivity score:${it.normOex}\tinclusivity score:${it.normEx}\tic:${it.normIc}"
+    println "${labels[it.iri]} (HP:${it.iri.tokenize('_')[1]}) & ${it.normOex.toDouble().round(2)} & ${it.normEx.toDouble().round(2)} & ${it.normIc.toDouble().round(2)} \\\\"
   }
+  println "\\hline"
 
 	println ''
 }
 
-["1", "7"].each { i ->
+(1..7).each { i ->
 	explainCluster("$i")
 }
 // TODO create the explanations, then go through and see which pairs have cross-over, explain those in contra-distinction, and add those ones to the explanations
