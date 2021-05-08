@@ -30,10 +30,10 @@ import org.codehaus.gpars.*
 // Load cluster memberships
 println 'Loading clusters ...'
 def clusters = [:]
-//new File('../data/facet_clust_membership.csv').splitEachLine(',') {
-new File('../data/all_clust_membership.csv').splitEachLine(',') {
+new File('../data/facet_clust_membership.csv').splitEachLine(',') {
+//new File('../data/all_clust_membership.csv').splitEachLine(',') {
   //if(!["2","3","5"].contains(it[2])) { return; }
-  def cIndex = 2
+  def cIndex = 3
   if(!clusters.containsKey(it[cIndex])) {
     clusters[it[cIndex]] = [] 
   }
@@ -56,9 +56,9 @@ println 'Loading patient phenotypes ...'
 def profiles = [:]
 new File('../data/annotations_with_modifiers.txt').splitEachLine('\t') {
   def id = it[0].tokenize('.')[0]
-  /*if(!fMap['abnormality of the cardiovascular system'].contains(it[1])) {
+  if(!fMap['abnormality of the cardiovascular system'].contains(it[1])) {
     return; 
-  }*/
+  }
   if(!profiles.containsKey(id)) { profiles[id] = [] }
   profiles[id] << it[1]
 }
@@ -95,6 +95,9 @@ def reasoner = elkFactory.createReasoner(ontology, config)
 // collect patient profiles and classes list for cluster 
 println 'Calculating cluster explanations ...'
 
+def incs = []
+def excs = []
+
 def explainCluster = { cid ->
 	def clusterClasses = []
 	clusters[cid].each { pid ->
@@ -112,14 +115,16 @@ def explainCluster = { cid ->
 		def subclasses = reasoner.getSubClasses(ce, false).collect { n -> n.getEntities().collect { it.getIRI().toString() } }.flatten()
 		explainers[c] = [
 			ic: ic[c],
-			explains: clusters[cid].findAll { pid -> profiles[pid].any { pc -> subclasses.contains(pc) } }.size(),
-      oexplains: clusters.collect { lcid, p ->
+			internalIncluded: clusters[cid].findAll { pid -> profiles[pid].any { pc -> subclasses.contains(pc) } },
+      externalIncluded: clusters.collect { lcid, p ->
         if(lcid == cid) { return 0; }
         p.findAll { pid ->
           profiles[pid].any { pc -> subclasses.contains(pc) }
-        }.size() 
-      }.sum()
+        }
+      }.flatten()
 		]
+    explainers[c].inclusion = explainers[c].internalIncluded.size()
+    explainers[c].exclusion = explainers[c].externalIncluded.size()
 
 		reasoner.getSuperClasses(ce, true).each { n ->
 			n.getEntities().each { sc ->
@@ -134,54 +139,65 @@ def explainCluster = { cid ->
 
 	def maxIc = explainers.collect { k, v -> v.ic }.max()
 	def minIc = explainers.collect { k, v -> v.ic }.min()
-	def maxEx = explainers.collect { k, v -> v.explains }.max()
-	def minEx = explainers.collect { k, v -> v.explains }.min()
-  def maxOex = explainers.collect { k, v -> v.oexplains }.max()
-  def minOex = explainers.collect { k, v -> v.oexplains }.min()
+	def maxEx = explainers.collect { k, v -> v.inclusion }.max()
+	def minEx = explainers.collect { k, v -> v.inclusion }.min()
+  def maxOex = explainers.collect { k, v -> v.exclusion }.max()
+  def minOex = explainers.collect { k, v -> v.exclusion }.min()
 
 	explainers = explainers.findAll { k, v -> v.ic }
 	explainers = explainers.collect { k, v ->
-		v.normIc = (v.ic - minIc) / (maxIc - minIc)
-		v.normEx = ((v.explains - minEx) / (maxEx - minEx))
-    v.normOex = ((v.oexplains - minOex) / (maxOex - minOex))
-		v.score = ((v.normIc * v.normEx) / ((v.normIc) + v.normEx))
-    v.oscore = ((1-v.normOex) * v.normEx) / ((1-v.normOex) + v.normEx)
+		v.nIc = (v.ic - minIc) / (maxIc - minIc)
+		v.nInclusion = ((v.inclusion - minEx) / (maxEx - minEx))
+    v.nExclusion = 1 - ((v.exclusion - minOex) / (maxOex - minOex))
 		v.iri = k 
 		v
 	}
 
-  //explainers = explainers.findAll { it.ic > icCutoff }
-	//def sorted = explainers.sort { it.normOex }
-
-
-  // So ideally I think we instead probably want to kind of step down each value individually and identify some way of identifying the best group of values... thjis will do for now 
-  // We can also further introspect by doign the same process to explain clusters pairwise (e.g. if you have two heavily cardiac clusters)
   def stepDown
-  stepDown = { e, icCutoff, incCutoff, excCutoff, minExclusion ->
-    /*def oexc = exCutoff
-    if(oexc < minExclusion) { oexc = minExclusion }*/
-
+  stepDown = { e, icCutoff, exclusionCutoff, inclusionCutoff, totalInclusionCutoff ->
     ef = e.findAll {
-      it.normIc > icCutoff && it.normEx > incCutoff && (1-it.normOex) > excCutoff
+      //println "comparing $it.normIc and $icCutoff for IC. comparing $it.nExclusion and $exclusionCutoff for exclusion"
+      it.nIc >= icCutoff && it.nExclusion >= exclusionCutoff && it.nInclusion >= inclusionCutoff
     } 
-    if(ef.size() < 2) {
-      if(incCutoff == 0 || excCutoff == 0) { return [] }
-      return stepDown(e, icCutoff, incCutoff - 0.05, excCutoff - 0.05, minExclusion) 
+    //println ef
+    def totalCoverage = ((ef.collect { it.internalIncluded }.flatten().unique(false).size()) / clusters[cid].size()) * 100
+    def totalExclusion = 1-(((ef.collect { it.internalExcluded }.flatten().unique(false).size()) / (clusters.collect {k,v->v.size()}.sum() - clusters[cid].size())) * 100)
+    //println "DEBUG: running with $icCutoff $exclusionCutoff $inclusionCutoff $totalCoverage/$totalInclusionCutoff"
+    if(totalCoverage <= (totalInclusionCutoff*100)) {
+      if(inclusionCutoff == 0.3) {
+        if(totalInclusionCutoff == 0.7 && icCutoff > 0.3) {
+          return stepDown(e, icCutoff - 0.05, 0.95, 0.95, totalInclusionCutoff)
+        } else {
+          return stepDown(e, 0.95, 0.95, 0.95, totalInclusionCutoff - 0.05)
+        }
+      } else {
+        def newExclusion = exclusionCutoff - 0.05
+        if(newExclusion < 0.3) { newExclusion = 0.3  }
+        return stepDown(e, icCutoff, newExclusion, inclusionCutoff - 0.05, totalInclusionCutoff)
+      }
     } 
-    return ef
+    return [ef, totalCoverage, totalExclusion]
   }
 
   println "Cluster $cid (${clusters[cid].size()} patient visits) & {\\bf Exclusion} & {\\bf Inclusion} & {\\bf IC} \\\\"
-  explainers = stepDown(explainers, 0.3, 0.95, 0.95, 0.33)
-  explainers.sort { -it.normIc }.each {
-    println "${labels[it.iri]} (HP:${it.iri.tokenize('_')[1]}) & ${it.normOex.toDouble().round(2)} & ${it.normEx.toDouble().round(2)} & ${it.normIc.toDouble().round(2)} \\\\"
+  def sd = stepDown(explainers, 0.6, 0.95, 0.95, 0.95)
+  explainers = sd[0]
+  explainers.sort { -it.nIc }.each {
+    incs << it.nExclusion
+    excs << it.nInclusion
+    println "${labels[it.iri]} (HP:${it.iri.tokenize('_')[1]}) & ${it.nExclusion.toDouble().round(2)} & ${it.nInclusion.toDouble().round(2)} & ${it.nIc.toDouble().round(2)} \\\\"
   }
+  println "Overall inclusivity: ${sd[1]}"
+
   println "\\hline"
 
 	println ''
 }
 
-(1..7).each { i ->
+(1..19).each { i ->
 	explainCluster("$i")
 }
+
+println "${incs.sum() / incs.size()}"
+println "${excs.sum() / excs.size()}"
 // TODO create the explanations, then go through and see which pairs have cross-over, explain those in contra-distinction, and add those ones to the explanations

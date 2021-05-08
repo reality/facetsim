@@ -5,7 +5,10 @@ new File('../facets/facet_map.txt').splitEachLine('\t') {
   if(!facetList.contains(it[2])) {
     facetList << it[2]
   }
-  fMap[it[1]] = it[2]
+  if(!fMap.containsKey(it[1])) {
+    fMap[it[1]] = []
+  }
+  fMap[it[1]] << it[2]
 }
 
 facetList << 'all'
@@ -19,7 +22,7 @@ def full_plist = []
 def pMap = [:]
 
 new File('../data/annotations_with_modifiers.txt').splitEachLine('\t') {
-  def facet = fMap[it[1]]
+  fMap[it[1]].each { facet ->
   if(!aCounts.containsKey(facet)) {
     aCounts[facet] = 0 
   }
@@ -48,6 +51,7 @@ new File('../data/annotations_with_modifiers.txt').splitEachLine('\t') {
   }
   if(!pMap[it[0]].contains(facet)) {
     pMap[it[0]] << facet 
+  }
   }
 
 
