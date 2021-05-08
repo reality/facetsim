@@ -30,10 +30,10 @@ import org.codehaus.gpars.*
 // Load cluster memberships
 println 'Loading clusters ...'
 def clusters = [:]
-new File('../data/facet_clust_membership.csv').splitEachLine(',') {
-//new File('../data/all_clust_membership.csv').splitEachLine(',') {
+//new File('../data/facet_clust_membership.csv').splitEachLine(',') {
+new File('../data/all_clust_membership.csv').splitEachLine(',') {
   //if(!["2","3","5"].contains(it[2])) { return; }
-  def cIndex = 3
+  def cIndex = 2
   if(!clusters.containsKey(it[cIndex])) {
     clusters[it[cIndex]] = [] 
   }
@@ -56,9 +56,9 @@ println 'Loading patient phenotypes ...'
 def profiles = [:]
 new File('../data/annotations_with_modifiers.txt').splitEachLine('\t') {
   def id = it[0].tokenize('.')[0]
-  if(!fMap['abnormality of the cardiovascular system'].contains(it[1])) {
+  /*if(!fMap['abnormality of the cardiovascular system'].contains(it[1])) {
     return; 
-  }
+  }*/
   if(!profiles.containsKey(id)) { profiles[id] = [] }
   profiles[id] << it[1]
 }
@@ -153,6 +153,16 @@ def explainCluster = { cid ->
 		v
 	}
 
+  def MAX_IC = 0.6
+  def MIN_IC = 0.3
+  def MAX_INCLUSION = 0.95
+  def MIN_INCLUSION = 0.3
+  def MAX_EXCLUSION = 0.95
+  def MIN_EXCLUSION = 0.3
+  def SOFT_MIN_TOTAL_INCLUSION = 0.7
+  def MAX_TOTAL_INCLUSION = 0.95
+  def STEP = 0.05
+
   def stepDown
   stepDown = { e, icCutoff, exclusionCutoff, inclusionCutoff, totalInclusionCutoff ->
     ef = e.findAll {
@@ -164,23 +174,23 @@ def explainCluster = { cid ->
     def totalExclusion = 1-(((ef.collect { it.internalExcluded }.flatten().unique(false).size()) / (clusters.collect {k,v->v.size()}.sum() - clusters[cid].size())) * 100)
     //println "DEBUG: running with $icCutoff $exclusionCutoff $inclusionCutoff $totalCoverage/$totalInclusionCutoff"
     if(totalCoverage <= (totalInclusionCutoff*100)) {
-      if(inclusionCutoff == 0.3) {
-        if(totalInclusionCutoff == 0.7 && icCutoff > 0.3) {
-          return stepDown(e, icCutoff - 0.05, 0.95, 0.95, totalInclusionCutoff)
+      if(inclusionCutoff == MIN_INCLUSION) {
+        if(totalInclusionCutoff == SOFT_MIN_TOTAL_INCLUSION && icCutoff > MIN_IC) {
+          return stepDown(e, icCutoff - STEP, MAX_EXCLUSION, MAX_INCLUSION, totalInclusionCutoff)
         } else {
-          return stepDown(e, 0.95, 0.95, 0.95, totalInclusionCutoff - 0.05)
+          return stepDown(e, MAX_IC, MAX_EXCLUSION, MAX_INCLUSION, totalInclusionCutoff - STEP)
         }
       } else {
-        def newExclusion = exclusionCutoff - 0.05
-        if(newExclusion < 0.3) { newExclusion = 0.3  }
-        return stepDown(e, icCutoff, newExclusion, inclusionCutoff - 0.05, totalInclusionCutoff)
+        def newExclusion = exclusionCutoff - STEP
+        if(newExclusion < MIN_EXCLUSION) { newExclusion = MIN_EXCLUSION  }
+        return stepDown(e, icCutoff, newExclusion, inclusionCutoff - STEP, totalInclusionCutoff)
       }
     } 
     return [ef, totalCoverage, totalExclusion]
   }
 
   println "Cluster $cid (${clusters[cid].size()} patient visits) & {\\bf Exclusion} & {\\bf Inclusion} & {\\bf IC} \\\\"
-  def sd = stepDown(explainers, 0.6, 0.95, 0.95, 0.95)
+  def sd = stepDown(explainers, MAX_IC, MAX_EXCLUSION, MAX_INCLUSION, MAX_TOTAL_INCLUSION)
   explainers = sd[0]
   explainers.sort { -it.nIc }.each {
     incs << it.nExclusion
@@ -194,7 +204,7 @@ def explainCluster = { cid ->
 	println ''
 }
 
-(1..19).each { i ->
+(1..7).each { i ->
 	explainCluster("$i")
 }
 
