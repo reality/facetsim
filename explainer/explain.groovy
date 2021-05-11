@@ -30,10 +30,10 @@ import org.codehaus.gpars.*
 // Load cluster memberships
 println 'Loading clusters ...'
 def clusters = [:]
-//new File('../data/facet_clust_membership.csv').splitEachLine(',') {
-new File('../data/all_clust_membership.csv').splitEachLine(',') {
+new File('../data/facet_clust_membership.csv').splitEachLine(',') {
+//new File('../data/all_clust_membership.csv').splitEachLine(',') {
   //if(!["2","3","5"].contains(it[2])) { return; }
-  def cIndex = 2
+  def cIndex = 13
   if(!clusters.containsKey(it[cIndex])) {
     clusters[it[cIndex]] = [] 
   }
@@ -43,12 +43,17 @@ new File('../data/all_clust_membership.csv').splitEachLine(',') {
 // Loading fMap
 def facetList = []
 def fMap = [:]
+def fClassMap = [:]
 new File('../facets/facet_map.txt').splitEachLine('\t') {
   if(!facetList.contains(it[2])) {
     facetList << it[2]
     fMap[it[2]] = []
   }
   fMap[it[2]] << it[1]
+  if(!fClassMap.containsKey(it[1])) {
+    fClassMap[it[1]] = []
+  }
+  fClassMap[it[1]] << it[2]
 }
 
 // Load patient phenotype profiles
@@ -56,9 +61,9 @@ println 'Loading patient phenotypes ...'
 def profiles = [:]
 new File('../data/annotations_with_modifiers.txt').splitEachLine('\t') {
   def id = it[0].tokenize('.')[0]
-  /*if(!fMap['abnormality of the cardiovascular system'].contains(it[1])) {
+  if(!fMap['neoplasm'].contains(it[1])) {
     return; 
-  }*/
+  }
   if(!profiles.containsKey(id)) { profiles[id] = [] }
   profiles[id] << it[1]
 }
@@ -117,7 +122,7 @@ def explainCluster = { cid ->
 			ic: ic[c],
 			internalIncluded: clusters[cid].findAll { pid -> profiles[pid].any { pc -> subclasses.contains(pc) } },
       externalIncluded: clusters.collect { lcid, p ->
-        if(lcid == cid) { return 0; }
+        if(lcid == cid) { return []; }
         p.findAll { pid ->
           profiles[pid].any { pc -> subclasses.contains(pc) }
         }
@@ -159,7 +164,6 @@ def explainCluster = { cid ->
   def MIN_INCLUSION = 0.3
   def MAX_EXCLUSION = 0.95
   def MIN_EXCLUSION = 0.3
-  def SOFT_MIN_TOTAL_INCLUSION = 0.7
   def MAX_TOTAL_INCLUSION = 0.95
   def STEP = 0.05
 
@@ -172,10 +176,10 @@ def explainCluster = { cid ->
     //println ef
     def totalCoverage = ((ef.collect { it.internalIncluded }.flatten().unique(false).size()) / clusters[cid].size()) * 100
     def totalExclusion = 1-(((ef.collect { it.internalExcluded }.flatten().unique(false).size()) / (clusters.collect {k,v->v.size()}.sum() - clusters[cid].size())) * 100)
-    //println "DEBUG: running with $icCutoff $exclusionCutoff $inclusionCutoff $totalCoverage/$totalInclusionCutoff"
+    //println "DEBUG: running with ic cutoff: $icCutoff exclusion cutoff: $exclusionCutoff inclusion cutoff: $inclusionCutoff total: coverage: $totalCoverage/$totalInclusionCutoff"
     if(totalCoverage <= (totalInclusionCutoff*100)) {
-      if(inclusionCutoff == MIN_INCLUSION) {
-        if(totalInclusionCutoff == SOFT_MIN_TOTAL_INCLUSION && icCutoff > MIN_IC) {
+      if(inclusionCutoff <= MIN_INCLUSION) {
+        if(icCutoff >= MIN_IC) {
           return stepDown(e, icCutoff - STEP, MAX_EXCLUSION, MAX_INCLUSION, totalInclusionCutoff)
         } else {
           return stepDown(e, MAX_IC, MAX_EXCLUSION, MAX_INCLUSION, totalInclusionCutoff - STEP)
@@ -187,26 +191,73 @@ def explainCluster = { cid ->
       }
     } 
     return [ef, totalCoverage, totalExclusion]
-  }
+  }.trampoline()
 
-  println "Cluster $cid (${clusters[cid].size()} patient visits) & {\\bf Exclusion} & {\\bf Inclusion} & {\\bf IC} \\\\"
   def sd = stepDown(explainers, MAX_IC, MAX_EXCLUSION, MAX_INCLUSION, MAX_TOTAL_INCLUSION)
   explainers = sd[0]
+  println "{\\bf Cluster $cid (${clusters[cid].size()} patient visits, overall inclusivity: ${sd[1].toDouble().round(2)})} & {\\bf Exclusion} & {\\bf Inclusion} & {\\bf IC} \\\\"
   explainers.sort { -it.nIc }.each {
     incs << it.nExclusion
     excs << it.nInclusion
     println "${labels[it.iri]} (HP:${it.iri.tokenize('_')[1]}) & ${it.nExclusion.toDouble().round(2)} & ${it.nInclusion.toDouble().round(2)} & ${it.nIc.toDouble().round(2)} \\\\"
   }
-  println "Overall inclusivity: ${sd[1]}"
 
   println "\\hline"
 
 	println ''
+
+  return explainers
 }
 
-(1..7).each { i ->
-	explainCluster("$i")
+def finalExplanations = []
+(1..4).each { i ->
+	finalExplanations << explainCluster("$i")
 }
+
+def overallFacetMentions = [:]
+facetList.each {
+  overallFacetMentions[it] = 0
+}
+
+finalExplanations.eachWithIndex { cexps, z ->
+  println "Cluster $z & & \\\\"
+  facetList.each { facet ->
+    if(facet == 'phenotypic abnormality') { return; }
+    def percentage = 0
+    try {
+      percentage = cexps.findAll { fClassMap[it.iri].contains(facet) }.size() / cexps.size()
+    } catch(e){} 
+    cexps.each { if(fClassMap[it.iri].contains(facet)) { overallFacetMentions[facet]++ } }
+    if(percentage != 0) {
+      println "& $facet & ${percentage.toDouble().round(2)} \\\\" 
+    }
+  }
+}
+
+// i knoew, it's real lazy
+def pat = []
+def ann = []
+def app = []
+overallFacetMentions.each { k, v ->
+  if(k != 'phenotypic abnormality') {
+    pat << profiles.findAll { id, codes -> codes.any { 
+      if(fClassMap.containsKey(it)) {
+        fClassMap[it].contains(k)}
+      }
+    }.size()
+    ann << profiles.collect { id, codes -> codes.findAll { 
+      if(fClassMap.containsKey(it)) {
+        fClassMap[it].contains(k) 
+      } 
+    } }.flatten().size()
+
+    app << v
+  }
+}
+
+println "patcounts = c(${pat.join(',')})"
+println "anncounts = c(${ann.join(',')})"
+println "appcounts = c(${app.join(',')})"
 
 println "${incs.sum() / incs.size()}"
 println "${excs.sum() / excs.size()}"

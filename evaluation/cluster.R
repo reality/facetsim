@@ -92,3 +92,16 @@ for(f in facets) {
 }
 
 do.call("grid.arrange", c(plist, ncol = 3))
+
+patcounts = c(524,921,985,681,513,10,962,749,204,546,874,586,407,184,20,829,61,894,436,885)
+appcounts = c(0,20,2,0,0,0,4,3,0,5,6,1,0,0,0,7,0,0,0,7)
+
+silcounts = c(0.21,0.84,0.57,0.74,0.39,0.57,-0.23,0.06,0.85,0.81,0.1,0.74,0.73,0.81,-0.02,0.48,0.41)
+patcountsnn = c(524,921,985,681,513,962,749,204,546,874,586,407,184,829,61,436,885)
+anncountsnn = c(1968,10057,6135,1937,1502,5820,4373,338,1477,5053,1430,1407,209,6448,89,890,7905)
+
+cor(anncounts, appcounts, method="pearson")
+cor(patcounts, appcounts, method="pearson")
+cor(anncountsnn, silcounts, method="pearson")
+cor(patcountsnn, silcounts, method="pearson")
+
