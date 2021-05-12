@@ -27,6 +27,9 @@ import java.util.concurrent.atomic.*
 import groovyx.gpars.*
 import org.codehaus.gpars.*
 
+def limitFacet = 'abnormality of metabolism/homeostasis'
+def limitExpToFacet = false
+
 // Load cluster memberships
 println 'Loading clusters ...'
 def clusters = [:]
@@ -61,7 +64,7 @@ println 'Loading patient phenotypes ...'
 def profiles = [:]
 new File('../data/annotations_with_modifiers.txt').splitEachLine('\t') {
   def id = it[0].tokenize('.')[0]
-  if(!fMap['neoplasm'].contains(it[1])) {
+  if(limitFacet && !fMap[limitFacet].contains(it[1])) {
     return; 
   }
   if(!profiles.containsKey(id)) { profiles[id] = [] }
@@ -134,6 +137,9 @@ def explainCluster = { cid ->
 		reasoner.getSuperClasses(ce, true).each { n ->
 			n.getEntities().each { sc ->
 				def strc = sc.getIRI().toString()
+       if(limitExpToFacet && limitFacet && !fMap[limitFacet].contains(strc)) {
+          return; 
+        }
 				processClass(strc)
 			}
 		}

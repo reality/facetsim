@@ -128,7 +128,7 @@ cList = cList.unique()
 URIFactory factory = URIFactoryMemory.getSingleton()
 
 def ontoFile = oFile
-def graphURI = factory.getURI('http://HP/')
+def graphURI = factory.getURI('http://purl.obolibrary.org/obo/HP_')
 factory.loadNamespacePrefix("HP", graphURI.toString());
 
 G graph = new GraphMemory(graphURI)
@@ -167,7 +167,7 @@ def smConfGroupwise = new SMconf(SMConstants.FLAG_SIM_GROUPWISE_BMA, icConf)
 
 def z = 0
 
-def outWriter = new BufferedWriter(new FileWriter('../data/facet_matrix.lst'), 1024 * 1024 * 1024)
+def outWriter = new BufferedWriter(new FileWriter('../data/facet_matrix_2.lst'), 1024 * 1024 * 1024)
 if(rmneg) {
 outWriter = new BufferedWriter(new FileWriter('../data/facet_matrix_noneg.lst'), 1024 * 1024 * 1024)
 }
