@@ -27,8 +27,9 @@ import java.util.concurrent.atomic.*
 import groovyx.gpars.*
 import org.codehaus.gpars.*
 
-def limitFacet = 'abnormality of metabolism/homeostasis'
-def limitExpToFacet = false
+//def limitFacet = 'abnormality of metabolism/homeostasis'
+def limitFacet = 'neoplasm'
+def limitExpToFacet =true 
 
 // Load cluster memberships
 println 'Loading clusters ...'
@@ -37,6 +38,7 @@ new File('../data/facet_clust_membership.csv').splitEachLine(',') {
 //new File('../data/all_clust_membership.csv').splitEachLine(',') {
   //if(!["2","3","5"].contains(it[2])) { return; }
   def cIndex = 13
+  //def cIndex = 2
   if(!clusters.containsKey(it[cIndex])) {
     clusters[it[cIndex]] = [] 
   }
@@ -137,7 +139,7 @@ def explainCluster = { cid ->
 		reasoner.getSuperClasses(ce, true).each { n ->
 			n.getEntities().each { sc ->
 				def strc = sc.getIRI().toString()
-       if(limitExpToFacet && limitFacet && !fMap[limitFacet].contains(strc)) {
+        if(limitExpToFacet && limitFacet && !fMap[limitFacet].contains(strc)) {
           return; 
         }
 				processClass(strc)
@@ -157,19 +159,23 @@ def explainCluster = { cid ->
 
 	explainers = explainers.findAll { k, v -> v.ic }
 	explainers = explainers.collect { k, v ->
-		v.nIc = (v.ic - minIc) / (maxIc - minIc)
-		v.nInclusion = ((v.inclusion - minEx) / (maxEx - minEx))
-    v.nExclusion = 1 - ((v.exclusion - minOex) / (maxOex - minOex))
+		//v.nIc = v.ic
+    v.nInclusion = v.inclusion / clusters[cid].size()
+    v.nExclusion = 1 - (v.exclusion / clusters.findAll { kk, vv -> kk != cid }.collect { kk, vv -> vv.size() }.sum())
+    v.nIc = (v.ic - minIc) / (maxIc - minIc)
+		//v.nInclusion = ((v.inclusion - minEx) / (maxEx - minEx))
+    //v.nExclusion = 1 - ((v.exclusion - minOex) / (maxOex - minOex))
 		v.iri = k 
 		v
 	}
+  //println explainers
 
-  def MAX_IC = 0.6
-  def MIN_IC = 0.3
+  def MAX_IC = 0.8
+  def MIN_IC = 0.4
   def MAX_INCLUSION = 0.95
-  def MIN_INCLUSION = 0.3
+  def MIN_INCLUSION = 0.1
   def MAX_EXCLUSION = 0.95
-  def MIN_EXCLUSION = 0.3
+  def MIN_EXCLUSION = 0.1
   def MAX_TOTAL_INCLUSION = 0.95
   def STEP = 0.05
 
@@ -205,7 +211,7 @@ def explainCluster = { cid ->
   explainers.sort { -it.nIc }.each {
     incs << it.nExclusion
     excs << it.nInclusion
-    println "${labels[it.iri]} (HP:${it.iri.tokenize('_')[1]}) & ${it.nExclusion.toDouble().round(2)} & ${it.nInclusion.toDouble().round(2)} & ${it.nIc.toDouble().round(2)} \\\\"
+    println "${labels[it.iri]} (HP:${it.iri.tokenize('_')[1]}) & ${it.nExclusion.toDouble().round(2)} & ${it.nInclusion.toDouble().round(2)} & ${it.ic.toDouble().round(2)} \\\\"
   }
 
   println "\\hline"

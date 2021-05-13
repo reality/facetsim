@@ -153,7 +153,7 @@ println graph.toString()
 def roots = new ValidatorDAG().getTaxonomicRoots(graph)
 println roots
 
-def icConf = new IC_Conf_Corpus(SMConstants.FLAG_IC_ANNOT_RESNIK_1995)
+def icConf = new IC_Conf_Corpus(SMConstants.FLAG_IC_ANNOT_RESNIK_1995_NORMALIZED)
 //def icConf = new IC_Conf_Topo(SMConstants.FLAG_ICI_ZHOU_2008)
 //def icConf = new IC_Conf_Topo(SMConstants.FLAG_ICI_SANCHEZ_2011)
 def smConfPairwise = new SMconf(SMConstants.FLAG_SIM_PAIRWISE_DAG_NODE_RESNIK_1995, icConf)
@@ -228,7 +228,6 @@ aMap.each { g1, u1 ->
   aList = aList.toSorted { it[2] }.reverse() //[0..10]
   aList.eachWithIndex { it, i -> 
     def out = it.subList(0, 3).join(',') + ',' + (i+1) + ',' + it.subList(3, it.size()).join(',') + '\n'
-    print out
     outWriter.write(out)
   }
 }

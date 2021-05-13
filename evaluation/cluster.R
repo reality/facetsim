@@ -20,10 +20,10 @@ processMatrix <- function(fname) {
   bestSil <- -100
   bestX <- 0
   bestModel <- 0
-  for(x in 2:20) {
+  for(x in 3:20) {
     gc()
-    km <- kmeans(tomMtx, centers=x)
-    ss <- silhouette(km$cluster, as.dist(tomMtx), iter.max=20000)
+    km <- kmeans(dist(tomMtx), centers=x, iter.max=200000, nstart=2)
+    ss <- silhouette(km$cluster, dist(tomMtx))
     score <- mean(ss[, 3])
     if(score > bestSil && score <= 1 && score >= -1) {
       bestSil <- score
@@ -36,39 +36,84 @@ processMatrix <- function(fname) {
     "bestSil" = bestSil,
     "bestX" = bestX,
     "km" = bestModel,
-    "mtx" = tomMtx
+    "mtx" = mtx,
+    "omtx" = mtx
   ))
   #print(bestSil)
   #print(bestX)
   #fviz_cluster(bestModel, data = tomMtx)
 }
+calculateDistanceMatrix <- function(simMatrix) {
+  # create adjacency matrix, weighted with exponential power to minimize low similarity
+  # distances
+  adjacencyMatrix <- WGCNA::adjacency(simMatrix, type = "unsigned", power = 2, corFnc = "I",
+                                      corOptions = "", distFnc = "I", distOptions = "")
 
-l <- processMatrix(paste("~/simsim/data/facet_matrices/abnormality of limbs.mtx", sep = ""))
+
+  return(adjacencyMatrix)
+}
+
+set.seed(1337)
+l <- processMatrix(paste("~/simsim/data/facet_matrices/all.lst", sep = ""))
+rownames(l$mtx) <- NULL
+fviz_cluster(l$km, data=dist(l$mtx), main="Overall cluster visualisation")
+
+l <- processMatrix(paste("~/simsim/data/facet_matrices/neoplasm.mtx", sep = ""))
+fviz_cluster(l$km, data=dist(l$mtx))
+
+ss <- silhouette(l$km$cluster, l$omtx)
+mean(ss[, 3])
+
+mtx <- read.csv("~/simsim/data/facet_matrices/neoplasm.mtx", row.names = 1, sep = ",", header = TRUE)
+mtx <- data.matrix(mtx)
+colnames(mtx) <- gsub(x = colnames(mtx), pattern = "X", replacement = "")
+km <- kmeans(dist(mtx), centers = 13, nstart=25)
+fviz_cluster(km, data=dist(mtx))
+
+silhouette_score <- function(k){
+  km <- kmeans(mtx, centers = k, nstart=25)
+  ss <- silhouette(km$cluster, dist(mtx))
+  mean(ss[, 3])
+}
+k <- 2:10
+avg_sil <- sapply(k, silhouette_score)
+plot(k, type='b', avg_sil, xlab='Number of clusters', ylab='Average Silhouette Scores', frame=FALSE)
+
+set.seed(1337)
+
+
+colnames(mtx) <- gsub(x = colnames(mtx), pattern = "\\.", replacement = ":")
+colnames(mtx) <- gsub(x = colnames(mtx), pattern = "X", replacement = "")
+
+mtx <- BBmisc::normalize(mtx, method= "range", range = c(0,1))
+  km <- kmeans(as.dist(mtx), centers=4, iter.max=200000)
+  ss <- silhouette(km$cluster, mtx)
+  mean(ss[,3])
+fviz_cluster(km, data = as.dist(mtx))
 
 # Look at all
-set.seed(1337)
 k <- kmeans(as.dist(tomMtx), centers=7)
-fviz_cluster(k, data = tomMtx)
 sil <- silhouette(k$cluster, tomMtx)
 plot(sil)
 
-cass <- data.frame(names=as.character(colnames(mtx)),clus=k$cluster)
-cass$names <- as.character(cass$names) # idk why the heckity heck it doesn't work above, but ok
+cass <- data.frame(names=as.character(colnames(l$omtx)),clus=l$km$cluster, stringsAsFactors = F)
 write.csv(cass, "~/simsim/data/all_clust_membership.csv")
 
+mtx <- l$omtx
 # Look at individual clusters
+#banned:  fviz_cluster(km, data=dist(mtx)
 set.seed(1337)
 facets <- c("abnormality of the endocrine system","abnormality of the cardiovascular system",
             "abnormality of the immune system",
             "abnormality of the musculoskeletal system","abnormality of the genitourinary system",
-            "abnormality of the voice","abnormality of metabolism or homeostasis",
+            "abnormality of metabolism or homeostasis",
             "abnormality of the nervous system","growth abnormality","abnormal cellular phenotype"
             ,"abnormality of blood and blood\\-forming tissues","abnormality of the integument",
             "neoplasm","abnormality of limbs","abnormality of the thoracic cavity",
             "abnormality of the digestive system","abnormality of prenatal development or birth",
             "constitutional symptom","abnormality of head or neck","abnormality of the respiratory system")
 
-memberships <- data.frame(names=as.character(colnames(mtx)), stringsAsFactors = F)
+memberships <- data.frame(names=as.character(colnames(l$omtx)), stringsAsFactors = F)
 csets <- data.frame(facet = character(), centers = double(), silhouette = double(), stringsAsFactors = F)
 clusters <- hash()
 for(f in facets) {
@@ -80,18 +125,20 @@ for(f in facets) {
     memberships[eval(f)] <- l$km$cluster
   }
   csets <- rbind(csets, data.frame(facet=f, centers=l$bestX, silhouette=l$bestSil))
+  clusters[[f]] <- l
 }
 
 write.csv(memberships, "~/simsim/data/facet_clust_membership.csv")
 
 plist = list()
 for(f in facets) {
-  if(clusters[[f]]$bestSil > 0.5) {
-    plist = list.append(plist, fviz_cluster(clusters[[f]]$km, data=clusters[[f]]$mtx, main=paste(f, "clusters", sep = " ")))
+  o <-f
+  if(!is.null(clusters[[o]]) && clusters[[o]]$bestSil > 0.5) {
+    plist = list.append(plist, fviz_cluster(clusters[[o]]$km, data=clusters[[o]]$mtx, main=paste(f, "clusters", sep = " ")))
   }
 }
 
-do.call("grid.arrange", c(plist, ncol = 3))
+do.call("grid.arrange", c(plist, ncol = 4))
 
 patcounts = c(524,921,985,681,513,10,962,749,204,546,874,586,407,184,20,829,61,894,436,885)
 appcounts = c(0,20,2,0,0,0,4,3,0,5,6,1,0,0,0,7,0,0,0,7)

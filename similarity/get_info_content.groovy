@@ -126,7 +126,7 @@ cList = cList.unique()
 URIFactory factory = URIFactoryMemory.getSingleton()
 
 def ontoFile = oFile
-def graphURI = factory.getURI('http://HP/')
+def graphURI = factory.getURI('http://purl.obolibrary.org/obo/HP_')
 factory.loadNamespacePrefix("HP", graphURI.toString());
 
 G graph = new GraphMemory(graphURI)
@@ -151,13 +151,13 @@ println graph.toString()
 def roots = new ValidatorDAG().getTaxonomicRoots(graph)
 println roots
 
-def icConf = new IC_Conf_Corpus(SMConstants.FLAG_IC_ANNOT_RESNIK_1995)
+def icConf = new IC_Conf_Corpus(SMConstants.FLAG_IC_ANNOT_RESNIK_1995_NORMALIZED)
 //def icConf = new IC_Conf_Topo(SMConstants.FLAG_ICI_ZHOU_2008)
 //def icConf = new IC_Conf_Topo(SMConstants.FLAG_ICI_SANCHEZ_2011)
 def smConfPairwise = new SMconf(SMConstants.FLAG_SIM_PAIRWISE_DAG_NODE_RESNIK_1995, icConf)
 //def smConfPairwise = new SMconf(SMConstants.FLAG_SIM_PAIRWISE_DAG_NODE_LIN_1998, icConf)
-//def smConfGroupwise = new SMconf(SMConstants.FLAG_SIM_GROUPWISE_AVERAGE, icConf)
-def smConfGroupwise = new SMconf(SMConstants.FLAG_SIM_GROUPWISE_BMA, icConf)
+def smConfGroupwise = new SMconf(SMConstants.FLAG_SIM_GROUPWISE_AVERAGE, icConf)
+//def smConfGroupwise = new SMconf(SMConstants.FLAG_SIM_GROUPWISE_BMA, icConf)
 // FLAG_SIM_GROUPWISE_AVERAGE_NORMALIZED_GOSIM
 
 //def smConfPairwise = new SMconf(SMConstants.FLAG_SIM_PAIRWISE_DAG_NODE_JIANG_CONRATH_1997_NORM , icConf)
