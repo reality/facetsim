@@ -1,3 +1,4 @@
+groovy transform.groovy 2 > "../data/facet_matrices/all.mtx" && \
 groovy transform.groovy 4 > "../data/facet_matrices/abnormality of the endocrine system.mtx" && \
 groovy transform.groovy 5 > "../data/facet_matrices/abnormality of the cardiovascular system.mtx" && \
 groovy transform.groovy 6 > "../data/facet_matrices/abnormality of the immune system.mtx" && \

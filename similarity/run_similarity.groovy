@@ -153,8 +153,8 @@ println graph.toString()
 def roots = new ValidatorDAG().getTaxonomicRoots(graph)
 println roots
 
-def icConf = new IC_Conf_Corpus(SMConstants.FLAG_IC_ANNOT_RESNIK_1995_NORMALIZED)
-//def icConf = new IC_Conf_Topo(SMConstants.FLAG_ICI_ZHOU_2008)
+//def icConf = new IC_Conf_Corpus(SMConstants.FLAG_IC_ANNOT_RESNIK_1995_NORMALIZED)
+def icConf = new IC_Conf_Topo(SMConstants.FLAG_ICI_ZHOU_2008)
 //def icConf = new IC_Conf_Topo(SMConstants.FLAG_ICI_SANCHEZ_2011)
 def smConfPairwise = new SMconf(SMConstants.FLAG_SIM_PAIRWISE_DAG_NODE_RESNIK_1995, icConf)
 //def smConfPairwise = new SMconf(SMConstants.FLAG_SIM_PAIRWISE_DAG_NODE_LIN_1998, icConf)
